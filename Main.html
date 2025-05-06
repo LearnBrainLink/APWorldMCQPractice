@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AP World History: Modern Quiz</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .source-text {
+            background-color: #f3f4f6; /* gray-100 */
+            border-left: 4px solid #60a5fa; /* blue-400 */
+            padding: 12px;
+            margin-bottom: 16px;
+            font-style: italic;
+            border-radius: 4px;
+        }
+        .source-text pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 280px; 
+            overflow-y: auto;
+            font-size: 0.9em;
+            line-height: 1.6; 
+        }
+        .question-container {
+            min-height: 300px; 
+        }
+        .option-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 12px;
+            margin-bottom: 8px;
+            border: 1px solid #d1d5db; /* gray-300 */
+            border-radius: 8px;
+            transition: background-color 0.3s;
+        }
+        .option-btn:hover:not(:disabled) {
+            background-color: #f9fafb; /* gray-50 */
+        }
+        .option-btn.selected {
+            background-color: #bfdbfe; /* blue-200 */
+            border-color: #3b82f6; /* blue-500 */
+        }
+        .option-btn.correct {
+            background-color: #d1fae5 !important; /* green-200 */
+            border-color: #10b981 !important; /* green-500 */
+            color: #065f46; 
+        }
+        .option-btn.incorrect {
+            background-color: #fee2e2 !important; /* red-200 */
+            border-color: #ef4444 !important; /* red-500 */
+            color: #991b1b; 
+        }
+        .explanation {
+            margin-top: 16px;
+            padding: 12px;
+            background-color: #eef2ff; /* indigo-50 */
+            border: 1px solid #c7d2fe; /* indigo-200 */
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .result-item {
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            border: 1px solid #e5e7eb; /* gray-200 */
+            border-radius: 0.5rem;
+            background-color: #ffffff;
+        }
+        .result-item p, .result-item div {
+             margin-bottom: 0.5rem;
+        }
+        .result-item .user-answer.correct {
+            color: #10b981; 
+        }
+        .result-item .user-answer.incorrect {
+            color: #ef4444; 
+        }
+        .result-item .correct-answer-text {
+            color: #10b981; 
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 flex flex-col items-center min-h-screen p-4">
+
+    <div id="quiz-container" class="bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-3xl">
+
+        <div id="start-screen" class="text-center">
+            <h1 class="text-3xl sm:text-4xl font-bold text-blue-600 mb-6">AP World History: Modern Quiz</h1>
+            <p class="mb-4 text-lg">You will have 55 questions and 55 minutes to complete the quiz.</p>
+            <p class="mb-8 text-sm text-gray-600">Sources are used for multiple questions. Question groups and answer options are randomized. Read carefully.</p>
+            <button id="start-quiz-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-xl transition duration-300 ease-in-out transform hover:scale-105">
+                Start Quiz
+            </button>
+        </div>
+
+        <div id="quiz-screen" class="hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-semibold text-blue-700" id="question-counter">Question X of YY</h2>
+                <div id="timer" class="text-xl font-bold text-red-500 bg-red-100 px-4 py-2 rounded-lg">55:00</div>
+            </div>
+
+            <div class="question-container mb-6">
+                <div id="source-content-container">
+                    <h3 class="text-md font-semibold text-gray-700 mb-2">Source Material (for this set of questions):</h3>
+                    <div id="source-content" class="source-text"><pre></pre></div>
+                </div>
+                <p id="question-text" class="text-lg font-medium mb-4"></p>
+                <div id="options-container" class="space-y-3">
+                </div>
+            </div>
+
+            <div id="explanation-container" class="explanation hidden">
+                <h4 class="font-semibold mb-1">Explanation:</h4>
+                <p id="explanation-text"></p>
+            </div>
+
+            <button id="next-question-btn" class="mt-6 w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out">
+                Check Answer
+            </button>
+        </div>
+
+        <div id="results-screen" class="hidden">
+            <h1 class="text-3xl sm:text-4xl font-bold text-blue-600 mb-4 text-center">Quiz Completed!</h1>
+            <p class="text-2xl mb-2 text-center">Your Score: <span id="score" class="font-bold"></span></p>
+            <p id="time-taken-message" class="mb-6 text-gray-700 text-center"></p>
+            
+            <div id="detailed-results-container" class="mt-6 max-h-[60vh] overflow-y-auto p-1">
+            </div>
+
+            <button id="restart-quiz-btn" class="mt-8 w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-xl transition duration-300 ease-in-out transform hover:scale-105">
+                Restart Quiz
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- Original Quiz Data (Source Groups) ---
+        const originalSourceGroupsData = [
+            { // Source Group 1: Dar al-Islam Justice
+                source_content: "The Kazi (judge) should understand that the happiness of the subjects depends upon justice, and that the security of the country from the oppression of the wicked and the seditious, and the prosperity of the kingdom, are connected with the integrity of the Kazi... He should be accessible to all, the high and the low, the rich and the poor, the noble and the mean, the strong and the weak. He should hear their complaints with patience and attention, and should not be influenced by any worldly considerations, either of fear or favor.\n\nWhen a case is brought before him, he should first of all try to bring about a reconciliation between the parties. If he fails in this, he should then proceed to investigate the matter thoroughly, by examining the witnesses and weighing their evidence. He should not be hasty in his decisions, but should reflect maturely on all the circumstances of the case. He should consult learned lawyers, if he has any doubt on any point of law. And when he has arrived at a decision, he should pronounce it with firmness, but without harshness.",
+                questions: [
+                    {
+                        question: "The responsibilities and conduct prescribed for the Kazi in this text, likely from a state in Dar al-Islam (c. 1200-1450), best reflect an attempt to:",
+                        options: [
+                            "Ensure the complete dominance of religious law over all secular matters without exception.",
+                            "Establish a system of governance based on principles of justice, accessibility, and due process for all subjects.",
+                            "Prioritize the interests of the ruling elite and wealthy merchants in legal disputes.",
+                            "Limit the power of local rulers by centralizing all judicial authority under a single religious figure."
+                        ],
+                        correctAnswerIndex: 1,
+                        explanation: "The text emphasizes justice, impartiality ('not be influenced by any worldly considerations'), accessibility ('to all, the high and the low'), thorough investigation, and careful deliberation. This points to an ideal of a just legal system intended to serve all subjects and maintain order, rather than solely enforcing religious dogma or favoring elites."
+                    },
+                    {
+                        question: "The emphasis on reconciliation and consultation with 'learned lawyers' in the Kazi's judicial process suggests which of the following about legal practices in the society described?",
+                        options: [
+                            "A rigid adherence to codified law with no room for interpretation or mediation.",
+                            "A legal system that valued restorative justice and expert legal opinion alongside formal rulings.",
+                            "The complete absence of written legal codes, relying solely on the Kazi's personal judgment.",
+                            "A system where legal decisions were primarily made by councils of elders rather than individual judges."
+                        ],
+                        correctAnswerIndex: 1,
+                        explanation: "The instruction to 'first of all try to bring about a reconciliation' points to restorative justice elements. The need to 'consult learned lawyers' indicates respect for legal expertise and interpretation beyond just the Kazi's singular authority, suggesting a sophisticated legal culture."
+                    },
+                    {
+                        question: "The passage implies that a primary concern for the state in which this Kazi operates is:",
+                        options: [
+                            "Territorial expansion through military conquest.",
+                            "The promotion of a single, uniform religious belief among all subjects.",
+                            "Maintaining social order and the prosperity of the kingdom through a just legal system.",
+                            "Maximizing tax revenue through strict enforcement of commercial regulations."
+                        ],
+                        correctAnswerIndex: 2,
+                        explanation: "The text states that 'the security of the country from the oppression of the wicked and the seditious, and the prosperity of the kingdom, are connected with the integrity of the Kazi.' This directly links the Kazi's just conduct to social order and the kingdom's well-being."
+                    }
+                ]
+            },
+            { // Source Group 2: Marco Polo on Yuan Dynasty Hangzhou
+                source_content: "The city of Quinsay [Hangzhou] is, without doubt, the finest and most noble in the world. In this city there are twelve principal handicraft trades, and for each trade there are a thousand workshops, each workshop employing from ten to forty workmen, all under a master. The trades are those of spicers, mercers, butchers, fowlers, shoemakers, tailors, barbers, and the like. The masters of these shops are in general very rich, so that they do not work with their own hands, but live in great comfort and ease, as do their wives, who are very handsome and elegantly dressed.\n\nFurthermore, there is in this city a garrison of 30,000 soldiers, maintained by the Great Khan, not from the revenues of the province, but from his own privy purse. For the province is so populous, and so rich in produce and manufactures, that it would be impossible to support such a garrison from its own resources. The people are idolaters, and burn their dead. They are subject to the Great Khan, whose paper money is current throughout his dominions.",
+                questions: [
+                    {
+                        question: "Marco Polo's description of Quinsay (Hangzhou) during the Yuan Dynasty primarily highlights:",
+                        options: [
+                            "The destruction of Chinese urban centers and suppression of commercial activities by Mongol rulers.",
+                            "A vibrant commercial economy and significant artisan production existing under Mongol military administration.",
+                            "The successful integration of Mongol and Chinese religious beliefs into a new syncretic faith.",
+                            "The economic decline of China due to the Mongol extraction of resources for military purposes."
+                        ],
+                        correctAnswerIndex: 1,
+                        explanation: "Polo describes a thriving city with 'twelve principal handicraft trades,' 'a thousand workshops' for each, and wealthy masters. This indicates a strong commercial and artisan economy. He also notes a large Mongol garrison, suggesting Mongol oversight of this productive region."
+                    },
+                    {
+                        question: "The detail that the garrison in Quinsay was 'maintained by the Great Khan, not from the revenues of the province, but from his own privy purse' most likely suggests:",
+                        options: [
+                            "The province of Quinsay was too poor to contribute to its own defense.",
+                            "The Mongol rulers sought to minimize direct taxation on prosperous urban centers to encourage continued economic activity.",
+                            "A decentralized system where local governors had full control over provincial revenues and military funding.",
+                            "The Great Khan's personal wealth was primarily derived from sources outside of China."
+                        ],
+                        correctAnswerIndex: 1,
+                        explanation: "Given Polo's description of Quinsay's immense wealth and productivity ('so populous, and so rich in produce and manufactures'), it's unlikely the province couldn't support the garrison. It's more plausible that the Mongols, known for sometimes adapting existing systems and encouraging trade, might have funded the garrison centrally to avoid disrupting the local economy with direct military levies, thus ensuring its continued prosperity which ultimately benefited the empire."
+                    },
+                    {
+                        question: "Polo's observation that 'The people are idolaters, and burn their dead. They are subject to the Great Khan, whose paper money is current throughout his dominions' implies which of the following about Mongol rule during this period?",
+                        options: [
+                            "The Mongols enforced their own religious practices and monetary systems uniformly across China.",
+                            "Mongol rule led to a complete cultural assimilation of the Chinese population.",
+                            "The Mongols maintained political and economic control while allowing a degree of cultural and religious continuity among the subject Chinese population.",
+                            "Chinese cultural practices, such as burial customs and currency, were entirely eradicated under Mongol rule."
+                        ],
+                        correctAnswerIndex: 2,
+                        explanation: "Polo notes distinct Chinese cultural practices ('idolaters,' 'burn their dead') coexisting with Mongol political and economic control ('subject to the Great Khan,' 'paper money is current'). This suggests the Mongols, while dominant, allowed for certain local customs to continue, a common strategy in their empire to manage diverse populations."
+                    }
+                ]
+            },
+            { // Source Group 3: French Declaration of Rights
+                source_content: "Article I – Men are born and remain free and equal in rights. Social distinctions can be founded only on the common good.\nArticle II – The goal of any political association is the conservation of the natural and imprescriptible rights of man. These rights are liberty, property, safety and resistance against oppression.\nArticle III – The principle of any sovereignty resides essentially in the Nation. No body, no individual can exert authority which does not emanate expressly from it.\n\nThese articles, from the French Declaration of the Rights of Man and of the Citizen (1789), reflect a radical departure from the traditional political and social order of pre-revolutionary France. They challenged the divine right of kings, the privileges of the nobility and clergy, and the concept of subjects bound by birth to a particular estate. Instead, they championed individual rights, popular sovereignty, and the idea of the nation as the source of political legitimacy, ideas that would inspire and also be contested throughout the 19th century and beyond.",
+                questions: [
+                    {
+                        question: "The articles from the Declaration of the Rights of Man and of the Citizen most directly reflect the influence of which of the following intellectual movements?",
+                        options: [
+                            "Mercantilist economic theories focused on state accumulation of wealth.",
+                            "Enlightenment ideals concerning natural rights, popular sovereignty, and the social contract.",
+                            "Traditional feudal obligations and the divine right of kings.",
+                            "The Counter-Reformation's efforts to restore papal authority."
+                        ],
+                        correctAnswerIndex: 1,
+                        explanation: "The Declaration's language—natural rights (Liberty, property, safety, resistance to oppression), equality, government by consent of the governed (sovereignty resides in the Nation)—are all core tenets of Enlightenment philosophy, particularly associated with thinkers like John Locke and Jean-Jacques Rousseau."
+                    },
+                    {
+                        question: "Article III, stating 'The principle of any sovereignty resides essentially in the Nation,' directly challenged which pre-revolutionary concept of political authority?",
+                        options: [
+                            "The authority of guilds and local communes in economic regulation.",
+                            "The concept of mercantilism and state control over trade.",
+                            "The divine right of kings, where monarchs derived their authority from God.",
+                            "The military power of the aristocracy as the basis for their social standing."
+                        ],
+                        correctAnswerIndex: 2,
+                        explanation: "The divine right of kings asserted that a monarch's authority to rule came directly from God, not from the people or any earthly source. Article III's assertion that sovereignty resides in 'the Nation' directly contradicts this, placing the ultimate source of political power with the collective people."
+                    },
+                    {
+                        question: "The ideas expressed in this Declaration had the most significant long-term impact on which of the following global developments after 1789?",
+                        options: [
+                            "The strengthening of absolute monarchies across Europe and Asia.",
+                            "The rise of nationalist movements and calls for constitutional governance in various parts of the world.",
+                            "A decline in international conflicts as nations embraced universal rights.",
+                            "The widespread adoption of mercantilist economic policies by newly formed states."
+                        ],
+                        correctAnswerIndex: 1,
+                        explanation: "The Declaration's emphasis on natural rights, popular sovereignty, and the nation as the source of legitimacy became foundational for many subsequent nationalist movements seeking self-determination and for movements advocating for constitutional governments that limited the power of rulers and protected citizens' rights."
+                    }
+                ]
+            },
+            { // Source Group 4: Churchill's Iron Curtain Speech
+                source_content: "From Stettin in the Baltic to Trieste in the Adriatic, an iron curtain has descended across the Continent. Behind that line lie all the capitals of the ancient states of Central and Eastern Europe. Warsaw, Berlin, Prague, Vienna, Budapest, Belgrade, Bucharest and Sofia, all these famous cities and the populations around them lie in what I must call the Soviet sphere, and all are subject in one form or another, not only to Soviet influence but to a very high and, in many cases, increasing measure of control from Moscow. This is certainly not the Liberated Europe we fought to build up. Nor is it one which contains the essentials of permanent peace.\n\nThe safety of the world requires a new unity in Europe, from which no nation should be permanently outcast. It is from the quarrels of the strong parent races in Europe that the world wars we have witnessed, or which occurred in former times, have sprung. Twice in our own lifetime we have seen the United States, against their wishes and their traditions, against arguments, the force of which it is impossible not to comprehend, drawn by irresistible forces, into these wars in time to secure the victory of the good cause, but only after frightful slaughter and devastation had occurred. Twice the United States has had to send several millions of its young men across the Atlantic to find the war; but now war can find any nation, wherever it may dwell between dusk and dawn.",
+                questions: [
+                    {
+                        question: "Winston Churchill's \"Iron Curtain\" speech in 1946 is most significant for:",
+                        options: [
+                            "Proposing a military alliance between Western Europe and the Soviet Union to ensure global peace.",
+                            "Celebrating the successful establishment of democratic governments throughout Eastern Europe after World War II.",
+                            "Articulating the emerging geopolitical division of Europe between the Western democratic bloc and the Soviet-controlled Eastern bloc, signaling the onset of the Cold War.",
+                            "Advocating for the immediate dismantling of all nuclear weapons to prevent future global conflicts."
+                        ],
+                        correctAnswerIndex: 2,
+                        explanation: "Churchill's speech famously describes the 'iron curtain' dividing Europe, with Eastern European capitals falling under the 'Soviet sphere' and 'increasing measure of control from Moscow.' He contrasts this with the 'Liberated Europe we fought to build up,' clearly identifying the ideological and political schism that defined the beginning of the Cold War."
+                    },
+                    {
+                        question: "In the second paragraph, Churchill's reference to the United States being 'drawn by irresistible forces, into these wars' primarily serves to:",
+                        options: [
+                            "Criticize the United States for its isolationist policies prior to World War II.",
+                            "Advocate for a stronger United Nations to prevent future American involvement in European conflicts.",
+                            "Emphasize the interconnectedness of global security and imply the necessity of continued U.S. engagement in post-war Europe against new threats.",
+                            "Suggest that future wars could be avoided if the United States remained strictly neutral."
+                        ],
+                        correctAnswerIndex: 2,
+                        explanation: "By highlighting past U.S. involvement despite its traditions, and stating 'now war can find any nation,' Churchill underscores the idea that global security is indivisible and that the U.S. cannot remain isolated from major European (and now global) power struggles, implicitly calling for its active role in confronting the Soviet threat."
+                    },
+                    {
+                        question: "The 'new unity in Europe' that Churchill calls for in the second paragraph most likely refers to an alliance or cooperation among which group of nations in the context of 1946?",
+                        options: [
+                            "All European nations, including the Soviet Union and its sphere of influence.",
+                            "The nations of Western Europe, likely in concert with the United States, to counter Soviet influence.",
+                            "The newly independent nations of Eastern Europe seeking to resist both Soviet and Western pressures.",
+                            "The former Axis powers seeking readmission into the international community."
+                        ],
+                        correctAnswerIndex: 1,
+                        explanation: "Given Churchill's stark depiction of the 'Soviet sphere' behind the 'iron curtain' and his concern about Soviet control, the 'new unity' he envisions is almost certainly a coalition of Western European nations, implicitly supported by or allied with the United States, to form a bulwark against further Soviet expansion and influence. This foreshadows alliances like NATO."
+                    }
+                ]
+            },
+            { // Source Group 5: Factory Conditions (Industrial Revolution)
+                source_content: "The condition of the factory operatives is indeed a lamentable one. Crowded into ill-ventilated rooms, often for twelve or fourteen hours a day, they are engaged in monotonous and exhausting labor. The air they breathe is thick with dust and fibers, leading to respiratory diseases. Accidents are frequent, as machinery is often unfenced and safety precautions minimal. Children, some as young as seven or eight, are employed for long hours at pitiful wages, their small frames and nimble fingers deemed suitable for certain tasks, but their health and education utterly neglected.\n\nThis state of affairs is not merely an unfortunate byproduct of industrial progress, but a systemic issue rooted in the pursuit of profit above all else. Employers, facing fierce competition, seek to minimize costs, and labor is often treated as just another commodity. While some argue that the wealth generated by industry benefits society as a whole, it is clear that the distribution of this wealth is grossly unequal, and that those whose labor creates it are too often condemned to lives of poverty, sickness, and despair. Reform is urgently needed, not just in terms of factory conditions, but in the very relationship between capital and labor.",
+                questions: [
+                    {
+                        question: "This mid-19th century description of factory conditions most directly reflects which of the following consequences of the Industrial Revolution?",
+                        options: [
+                            "The rapid improvement in living standards and working conditions for all social classes.",
+                            "The emergence of new social problems and critiques of industrial capitalism due to harsh labor practices and inequalities.",
+                            "A widespread movement among factory owners to voluntarily improve worker safety and wages.",
+                            "The decline of urban populations as people returned to agrarian lifestyles to escape factory work."
+                        ],
+                        correctAnswerIndex: 1,
+                        explanation: "The source vividly details 'lamentable' conditions, 'ill-ventilated rooms,' 'exhausting labor,' child labor, disease, and accidents, all attributed to the 'pursuit of profit above all else.' This is a clear critique of the social problems and inequalities arising from early industrial capitalism, prompting calls for reform."
+                    },
+                    {
+                        question: "The author's assertion that 'labor is often treated as just another commodity' best reflects the influence of which developing economic ideology?",
+                        options: [
+                            "Mercantilism, with its emphasis on state control of trade and accumulation of bullion.",
+                            "Utopian socialism, which advocated for communal ownership and ideal working communities.",
+                            "Laissez-faire capitalism, where market forces and profit motives often overshadowed worker welfare in the absence of regulation.",
+                            "Feudalism, with its system of reciprocal obligations between lords and serfs."
+                        ],
+                        correctAnswerIndex: 2,
+                        explanation: "The idea of labor as a commodity, bought and sold based on supply and demand with minimal regard for the human element, is a characteristic critique of early laissez-faire capitalism. In this system, the 'pursuit of profit' and competitive pressures often led employers to minimize labor costs, as described."
+                    },
+                    {
+                        question: "The call for 'Reform... not just in terms of factory conditions, but in the very relationship between capital and labor' suggests the author would most likely support which of the following 19th-century developments?",
+                        options: [
+                            "The complete abolition of private property and the establishment of a classless society.",
+                            "Government intervention through legislation to regulate working hours, child labor, and safety standards.",
+                            "A return to pre-industrial, agrarian economic systems.",
+                            "Increased mechanization to further reduce the need for human labor in factories."
+                        ],
+                        correctAnswerIndex: 1,
+                        explanation: "The call for reform in the 'relationship between capital and labor' and in 'factory conditions' points towards efforts to mitigate the harshness of industrial work. This aligns with 19th-century reform movements that advocated for government legislation like factory acts, which aimed to regulate child labor, working hours, and safety, thereby changing the existing unregulated relationship."
+                    }
+                ]
+            }
+        ];
+
+        // --- Placeholder Source Groups to reach 55 questions ---
+        const placeholderSourceGroup = {
+            source_content: "This is a placeholder source text for a unique primary source relevant to AP World History: Modern (c. 1200 to present). It should be approximately two paragraphs long and provide sufficient detail for multiple analytical questions.\n\nThis second paragraph of the placeholder source would continue to offer historical context or specific details from a primary document, such as a letter, edict, traveler's account, or political manifesto, allowing for nuanced interpretation and connection to broader historical themes.",
+            questions: [
+                { question: "Placeholder Question 1 for this source: Analyze the primary argument or perspective presented in the first paragraph.", options: ["Option A1", "Option B1 (Correct)", "Option C1", "Option D1"], correctAnswerIndex: 1, explanation: "Placeholder explanation for Q1 of this source group." },
+                { question: "Placeholder Question 2 for this source: What does the second paragraph reveal about the societal context or impact of the events/ideas described?", options: ["Option A2", "Option B2", "Option C2 (Correct)", "Option D2"], correctAnswerIndex: 2, explanation: "Placeholder explanation for Q2 of this source group." },
+                { question: "Placeholder Question 3 for this source: How does this source reflect broader patterns of [specific AP theme, e.g., state building, economic systems, social structures] during its time period?", options: ["Option A3 (Correct)", "Option B3", "Option C3", "Option D3"], correctAnswerIndex: 0, explanation: "Placeholder explanation for Q3 of this source group." },
+                { question: "Placeholder Question 4 for this source: What is a likely limitation of this source for a historian studying [specific topic]?", options: ["Option A4", "Option B4", "Option C4", "Option D4 (Correct)"], correctAnswerIndex: 3, explanation: "Placeholder explanation for Q4 of this source group." }
+            ]
+        };
+
+        for (let i = 0; i < 10; i++) { // Add 10 placeholder groups * 4 questions each = 40 placeholder questions
+            let newPlaceholderGroup = JSON.parse(JSON.stringify(placeholderSourceGroup));
+            // Optionally, make placeholder content slightly unique if needed for debugging, though not strictly necessary for functionality
+            newPlaceholderGroup.source_content = `Placeholder Source Group ${i + 6} Content: Paragraph 1...\n\nParagraph 2...`;
+            newPlaceholderGroup.questions.forEach((q, idx) => {
+                q.question = `Placeholder Q${idx+1} for Source Group ${i+6}: ...`;
+            });
+            originalSourceGroupsData.push(newPlaceholderGroup);
+        }
+
+
+        // --- DOM Elements ---
+        const startScreen = document.getElementById('start-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const resultsScreen = document.getElementById('results-screen');
+        const startQuizBtn = document.getElementById('start-quiz-btn');
+        const questionCounterEl = document.getElementById('question-counter');
+        const timerEl = document.getElementById('timer');
+        const sourceContentEl = document.getElementById('source-content').querySelector('pre');
+        const questionTextEl = document.getElementById('question-text');
+        const optionsContainerEl = document.getElementById('options-container');
+        const explanationContainerEl = document.getElementById('explanation-container');
+        const explanationTextEl = document.getElementById('explanation-text');
+        const nextQuestionBtn = document.getElementById('next-question-btn');
+        const scoreEl = document.getElementById('score');
+        const timeTakenMessageEl = document.getElementById('time-taken-message');
+        const detailedResultsContainerEl = document.getElementById('detailed-results-container');
+        const restartQuizBtn = document.getElementById('restart-quiz-btn');
+
+        // --- Quiz State ---
+        let shuffledSourceGroups = [];
+        let currentSourceGroupIndex = 0;
+        let currentQuestionWithinGroupIndex = 0;
+        let overallQuestionDisplayCounter = 0; // For "Question X of YY"
+        let totalQuestionsCount = 0;
+
+        let currentQuestionDataForDisplay = {}; // Holds current question with its shuffled options
+        let userResponses = [];
+        let score = 0;
+        let timerInterval;
+        let timeLeft = 55 * 60;
+        let quizActive = false;
+        let answerCheckedThisTurn = false;
+        let selectedOptionOriginalIndex = -1;
+        let selectedOptionText = "";
+
+        // --- Utility Functions ---
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        // --- Core Quiz Functions ---
+        function startQuiz() {
+            startScreen.classList.add('hidden');
+            quizScreen.classList.remove('hidden');
+            resultsScreen.classList.add('hidden');
+            detailedResultsContainerEl.innerHTML = '';
+
+            shuffledSourceGroups = JSON.parse(JSON.stringify(originalSourceGroupsData));
+            shuffleArray(shuffledSourceGroups);
+
+            totalQuestionsCount = 0;
+            shuffledSourceGroups.forEach(group => totalQuestionsCount += group.questions.length);
+            
+            currentSourceGroupIndex = 0;
+            currentQuestionWithinGroupIndex = 0;
+            overallQuestionDisplayCounter = 0;
+            userResponses = [];
+            score = 0;
+            timeLeft = 55 * 60;
+            quizActive = true;
+            answerCheckedThisTurn = false;
+            selectedOptionOriginalIndex = -1;
+            selectedOptionText = "";
+
+            displayQuestion();
+            startTimer();
+            updateNextButtonTextAndState();
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            updateTimerDisplay();
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    endQuiz(true);
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            timerEl.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function displayQuestion() {
+            if (currentSourceGroupIndex >= shuffledSourceGroups.length) {
+                endQuiz(false); // Should be caught by overallQuestionDisplayCounter check too
+                return;
+            }
+            
+            overallQuestionDisplayCounter++;
+            const currentGroup = shuffledSourceGroups[currentSourceGroupIndex];
+            const currentQuestionObject = currentGroup.questions[currentQuestionWithinGroupIndex];
+
+            // Update source text only if it's the first question for this source group
+            if (currentQuestionWithinGroupIndex === 0) {
+                sourceContentEl.textContent = currentGroup.source_content;
+            }
+
+            questionTextEl.textContent = currentQuestionObject.question;
+            questionCounterEl.textContent = `Question ${overallQuestionDisplayCounter} of ${totalQuestionsCount}`;
+
+            // Prepare and shuffle options
+            let optionsWithOriginalIndices = currentQuestionObject.options.map((optText, idx) => ({
+                text: optText,
+                originalIndex: idx
+            }));
+            shuffleArray(optionsWithOriginalIndices);
+            currentQuestionDataForDisplay.shuffledOptions = optionsWithOriginalIndices;
+
+            optionsContainerEl.innerHTML = '';
+            optionsWithOriginalIndices.forEach((optionData) => {
+                const button = document.createElement('button');
+                button.classList.add('option-btn');
+                button.type = 'button';
+                button.textContent = optionData.text;
+                button.dataset.originalIndex = optionData.originalIndex;
+                button.addEventListener('click', () => selectAnswer(optionData.originalIndex, optionData.text, button));
+                optionsContainerEl.appendChild(button);
+            });
+
+            explanationContainerEl.classList.add('hidden');
+            answerCheckedThisTurn = false;
+            selectedOptionOriginalIndex = -1;
+            selectedOptionText = "";
+            updateNextButtonTextAndState();
+            optionsContainerEl.querySelectorAll('.option-btn').forEach(btn => btn.disabled = false);
+        }
+
+        function selectAnswer(originalIdx, optionText, buttonEl) {
+            if (answerCheckedThisTurn) return;
+
+            selectedOptionOriginalIndex = originalIdx;
+            selectedOptionText = optionText;
+
+            optionsContainerEl.querySelectorAll('.option-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            buttonEl.classList.add('selected');
+            updateNextButtonTextAndState();
+        }
+
+        function updateNextButtonTextAndState() {
+            if (!quizActive) return;
+
+            if (answerCheckedThisTurn) {
+                nextQuestionBtn.textContent = (overallQuestionDisplayCounter === totalQuestionsCount) ? 'View Results' : 'Next Question';
+                nextQuestionBtn.classList.remove('bg-yellow-500', 'hover:bg-yellow-600');
+                nextQuestionBtn.classList.add('bg-green-500', 'hover:bg-green-700');
+                nextQuestionBtn.disabled = false;
+            } else {
+                nextQuestionBtn.textContent = 'Check Answer';
+                nextQuestionBtn.classList.remove('bg-green-500', 'hover:bg-green-700');
+                nextQuestionBtn.classList.add('bg-yellow-500', 'hover:bg-yellow-600');
+                nextQuestionBtn.disabled = selectedOptionOriginalIndex === -1;
+            }
+        }
+
+        function handleNextAction() {
+            if (!quizActive) return;
+
+            const currentGroup = shuffledSourceGroups[currentSourceGroupIndex];
+            const currentQuestionObject = currentGroup.questions[currentQuestionWithinGroupIndex];
+
+            if (!answerCheckedThisTurn) { // "Check Answer"
+                if (selectedOptionOriginalIndex === -1) return;
+
+                const isCorrect = selectedOptionOriginalIndex === currentQuestionObject.correctAnswerIndex;
+                if (isCorrect) {
+                    score++;
+                }
+
+                userResponses.push({
+                    sourceContent: currentGroup.source_content,
+                    questionText: currentQuestionObject.question,
+                    userAnswerText: selectedOptionText,
+                    correctAnswerText: currentQuestionObject.options[currentQuestionObject.correctAnswerIndex],
+                    explanation: currentQuestionObject.explanation,
+                    isCorrect: isCorrect
+                });
+
+                optionsContainerEl.querySelectorAll('.option-btn').forEach(btn => {
+                    btn.disabled = true;
+                    const btnOriginalIndex = parseInt(btn.dataset.originalIndex);
+                    if (btnOriginalIndex === currentQuestionObject.correctAnswerIndex) {
+                        btn.classList.add('correct');
+                    } else if (btnOriginalIndex === selectedOptionOriginalIndex && !isCorrect) {
+                        btn.classList.add('incorrect');
+                    }
+                });
+
+                explanationTextEl.textContent = currentQuestionObject.explanation;
+                explanationContainerEl.classList.remove('hidden');
+                answerCheckedThisTurn = true;
+                updateNextButtonTextAndState();
+
+            } else { // "Next Question" or "View Results"
+                currentQuestionWithinGroupIndex++;
+                if (currentQuestionWithinGroupIndex >= currentGroup.questions.length) {
+                    currentSourceGroupIndex++;
+                    currentQuestionWithinGroupIndex = 0;
+                }
+
+                if (overallQuestionDisplayCounter >= totalQuestionsCount) {
+                     endQuiz(false);
+                } else {
+                    displayQuestion();
+                }
+            }
+        }
+
+        function endQuiz(autoSubmitted = false) {
+            quizActive = false;
+            clearInterval(timerInterval);
+            quizScreen.classList.add('hidden');
+            resultsScreen.classList.remove('hidden');
+
+            scoreEl.textContent = `${score} / ${totalQuestionsCount} (${((score / totalQuestionsCount) * 100).toFixed(1)}%)`;
+            
+            if (autoSubmitted) {
+                timeTakenMessageEl.textContent = "Time's up! The quiz was automatically submitted.";
+                // If auto-submitted and current question wasn't fully processed, record it as unanswered
+                if (userResponses.length < totalQuestionsCount && currentSourceGroupIndex < shuffledSourceGroups.length) {
+                    const currentGroup = shuffledSourceGroups[currentSourceGroupIndex];
+                    const currentQuestionObject = currentGroup.questions[currentQuestionWithinGroupIndex];
+                     if (currentQuestionObject) { // Check if currentQuestionObject is defined
+                        userResponses.push({
+                            sourceContent: currentGroup.source_content,
+                            questionText: currentQuestionObject.question,
+                            userAnswerText: "No answer (Time up)",
+                            correctAnswerText: currentQuestionObject.options[currentQuestionObject.correctAnswerIndex],
+                            explanation: currentQuestionObject.explanation,
+                            isCorrect: false
+                        });
+                    }
+                }
+            } else {
+                const timeElapsed = (55 * 60) - timeLeft;
+                const minutesTaken = Math.floor(timeElapsed / 60);
+                const secondsTaken = timeElapsed % 60;
+                timeTakenMessageEl.textContent = `You completed the quiz in ${minutesTaken}m ${secondsTaken}s.`;
+            }
+            displayDetailedResults();
+        }
+
+        function displayDetailedResults() {
+            detailedResultsContainerEl.innerHTML = ''; 
+            userResponses.forEach((response, index) => {
+                const resultItem = document.createElement('div');
+                resultItem.classList.add('result-item');
+
+                let answerStatusHTML = response.isCorrect 
+                    ? `<span class="font-bold text-green-600">Correct</span>`
+                    : `<span class="font-bold text-red-600">Incorrect</span>`;
+
+                resultItem.innerHTML = `
+                    <h4 class="font-semibold text-lg">Question ${index + 1} (${answerStatusHTML})</h4>
+                    <div class="source-text text-sm bg-gray-50 p-2 border border-gray-200 rounded"><pre>${response.sourceContent}</pre></div>
+                    <p class="font-medium">${response.questionText}</p>
+                    <p>Your Answer: <span class="font-semibold user-answer ${response.isCorrect ? 'correct' : 'incorrect'}">${response.userAnswerText}</span></p>
+                    ${!response.isCorrect ? `<p>Correct Answer: <span class="correct-answer-text">${response.correctAnswerText}</span></p>` : ''}
+                    <div class="explanation mt-2 p-2 bg-indigo-50 border border-indigo-100 rounded text-sm">
+                        <h5 class="font-semibold">Explanation:</h5>
+                        <p>${response.explanation}</p>
+                    </div>
+                `;
+                detailedResultsContainerEl.appendChild(resultItem);
+            });
+        }
+
+        // --- Event Listeners ---
+        startQuizBtn.addEventListener('click', startQuiz);
+        nextQuestionBtn.addEventListener('click', handleNextAction);
+        restartQuizBtn.addEventListener('click', () => {
+            resultsScreen.classList.add('hidden');
+            startScreen.classList.remove('hidden');
+            timeLeft = 55 * 60; 
+            updateTimerDisplay();
+        });
+
+        // Initial setup
+        updateTimerDisplay(); 
+    </script>
+</body>
+</html>
